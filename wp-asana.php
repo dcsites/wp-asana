@@ -194,22 +194,52 @@ function asana_show_tasks(){
 		if( ! empty( $tasks ) ) {
 			$return .= '<ul class="tasks">';
 
+			$in_subproject = 0;
+			$subproject_tasks = 0;
+
 			foreach( $tasks as $t ) {
 
-				if ( 1 == $t->completed ) {
+				if ( 1 == $t->completed || empty( $t->name ) ) {
 					continue;
 				}
 
+				$is_subproject = ':' == substr( $t->name, -1 ) ? true : false;
+
+				if( $is_subproject && $in_subproject && ! $subproject_tasks ) {
+					$return .= '</ul>';
+				}
+
+				if( $total_tasks ) {
+					$return .= '</li>';
+				}
+
+				if( $is_subproject && $in_subproject && $subproject_tasks ) {
+					$return .= '</ul>';
+				}
+
 				$total_tasks++;
+				$subproject_tasks++;
+
+				$return .= '<li>' . $t->name;
 
 				$color = strtotime( $t->due_on ) < time() ? 'red' : 'grey';
-				$return .= '<li>' . $t->name;
+
 				if( !empty( $t->due_on ) ) {
-					$return .= "- <span class='$color'>$t->due_on</span></li>";
+					$return .= " - <span class='$color'>$t->due_on</span>";
+				}
+
+				if( $is_subproject ) {
+					$return .= '<ul>';
+					$in_subproject++;
+					$subproject_tasks = 0;
 				}
 			}
 
-			$return .= '</ul>';
+			if( $is_subproject ) {
+				$return .= '</ul>';
+			}
+
+			$return .= '</li></ul>';
 		} else {
 			$return .= '<p>' . __( 'There are no tasks in this project', 'wp-asana' ) . '</p>';
 		}
@@ -219,7 +249,7 @@ function asana_show_tasks(){
 	if( ! $total_tasks ) {
 		$return .= '<p>' . __( 'There are no tasks in this workspace', 'wp-asana' ) . '</p>';
 	}
-
+echo '<h2>RSH DUMP</h2><pre>'; var_dump( $return ); echo '</pre>';
 	return $return;
 }
 
