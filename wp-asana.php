@@ -78,7 +78,7 @@ TABLE;
 
 	if ( !empty( $api_key ) ) {
 		$workspace_url = "workspaces";
-		$workspaces = get_asana_info( $workspace_url, $api_key . ':' ); //note API key must have colon added to it for basic auth to work
+		$workspaces = get_asana_info( $workspace_url, $api_key ); //note API key must have colon added to it for basic auth to work
 
 		$users = get_users();
 		$user_workspaces = get_option( 'asana_user_workspaces', false );
@@ -130,7 +130,9 @@ function asana_show_tasks(){
 	$api_key = get_option( 'asana_api_key' );
 
 	$user_workspaces = get_option( 'asana_user_workspaces' );
-	$ws_value = isset( $user_workspaces[ $user_id ] ) ? $user_workspaces[ $user_id ] : '';
+	$ws_string = isset( $user_workspaces[ $user_id ] ) ? $user_workspaces[ $user_id ] : '';
+	$ws_values = explode( '&', $ws_string );
+	$ws_value = $ws_values[0];
 
 	//can't create projects until the plugin has been configured and the user has an Asana project
 	if( empty( $api_key ) || empty( $ws_value ) ){
@@ -166,52 +168,40 @@ function asana_show_tasks(){
 	//set correct timezone so that we get the right date for tasks
 	$timezone = get_option('timezone_string', 'UTC+0');
 	date_default_timezone_set($timezone);
-	$today = date("Y-m-d");
-	$endofweek = strtotime( "next Sunday" );
-	$weekend = date("Y-m-d",$endofweek);
-
-	//get the tasks
-	$task_url_ending = "tasks?opt_fields=name,completed,due_on,assignee_status,projects&workspace=" . $ws_value . "&assignee=me";
-	$tasks = get_asana_info( $task_url_ending, $api_key . ':' );
 
 	//get the names of the projects
-	$projects_url_ending = "projects";
-	$projects = get_asana_info( $projects_url_ending, $api_key . ':' );
+	$projects_url = "workspaces/$ws_value/projects";
+	$projects = get_asana_info( $projects_url, $api_key );
 
-	$project_tasks = array();
+	$total_tasks = 0;
 
-	// Create tasks array
-	foreach($tasks as $t){
-		if($t->completed != 1 ) {
-			$project_ids = $t->projects;
-			$project_id = array_pop( $project_ids );
-
-			$id = empty( $project_id ) ? 0 : $project_id->id;
-
-			$project_tasks[ $id ][] = $t;
-		}
+	if( empty( $projects ) ) {
+		return '<p>' . __( 'There are no tasks in this workspace', 'wp-asana' ) . '</p>';
 	}
 
-	foreach( $project_tasks as $project_id => $ptasks ) {
+	foreach( $projects as $p ){
 
-		foreach($projects as $p){
-			if($project_id == $p->id)
-			{
-				$project_name = $p->name;
-			}
+		if( ! $p->id ) {
+			continue;
 		}
 
-		if( empty( $project_id ) ) {
-			$project_name = __( 'Uncategorized', 'wp-asana' );
-		}
+		$task_url_ending = "tasks?opt_fields=name,completed,due_on&project=$p->id";
+		$tasks = get_asana_info( $task_url_ending, $api_key );
 
-		$return .= '<h3>' . $project_name . '</h3>';
+		$return .= '<h3>' . $p->name . '</h3>';
 
 		//if there are no tasks in the category, say so
-		if( ! empty( $tasks ) ){
+		if( ! empty( $tasks ) ) {
 			$return .= '<ul class="tasks">';
 
-			foreach( $ptasks as $t ) {
+			foreach( $tasks as $t ) {
+
+				if ( 1 == $t->completed ) {
+					continue;
+				}
+
+				$total_tasks++;
+
 				$color = strtotime( $t->due_on ) < time() ? 'red' : 'grey';
 				$return .= '<li>' . $t->name;
 				if( !empty( $t->due_on ) ) {
@@ -223,6 +213,11 @@ function asana_show_tasks(){
 		} else {
 			$return .= '<p>' . __( 'There are no tasks in this project', 'wp-asana' ) . '</p>';
 		}
+
+	}
+
+	if( ! $total_tasks ) {
+		$return .= '<p>' . __( 'There are no tasks in this workspace', 'wp-asana' ) . '</p>';
 	}
 
 	return $return;
@@ -238,7 +233,9 @@ function asana_show_task_form(){
 	$api_key = get_option( 'asana_api_key' );
 
 	$user_workspaces = get_option( 'asana_user_workspaces' );
-	$ws_value = isset( $user_workspaces[ $user_id ] ) ? $user_workspaces[ $user_id ] : '';
+	$ws_string = isset( $user_workspaces[ $user_id ] ) ? $user_workspaces[ $user_id ] : '';
+	$ws_values = explode( '&', $ws_string );
+	$ws_value = $ws_values[0];
 
 	//can't create projects until the plugin has been configured and the user has an Asana project
 	if( empty( $api_key ) || empty( $ws_value ) ){
@@ -273,7 +270,8 @@ function asana_show_task_form(){
 		$body = array( 'data' => $bodydata );
 
 		//call task creation
-		$response = put_asana_info( $url, $method, $body, $api_key . ':' );
+		$response = put_asana_info( $url, $method, $body, $api_key );
+
 		if ( is_wp_error($response) ) {
 			$return .= 'Error communicating with Asana: ' . $response->get_error_message();
 		} else {
@@ -294,7 +292,6 @@ function asana_show_task_form(){
 			$url = "tasks/".$id."/addProject";
 			$bodydata = array("project" => $project);
 			$body = array("data" => $bodydata);
-			$api_key = get_the_author_meta('asana_api_key', $user_id).":";
 			$response = put_asana_info($url, "POST", $body, $api_key);
 			if ( is_wp_error($response) ) {
 				$return .= "Error communicating with Asana: ".$response->get_error_message();
@@ -372,19 +369,14 @@ FORM;
 }
 
 function get_asana_info($url_ending, $api_key){
-	$asana_url = "https://app.asana.com/api/1.0/" . $url_ending;
+	$get_param = strpos( $url_ending, '?' ) ? '&' : '?';
+	$asana_url = "https://app.asana.com/api/1.0/" . $url_ending . $get_param . 'access_token=' . $api_key;
 	$data = false;
 
-	//encode key and set header arguments (note sslverify must be false)
-	$args = array(
-		'headers' => array(
-			'Authorization' => 'Basic ' . base64_encode( $api_key ),
-			),
-		'sslverify' => false,
-		);
+	$results = wp_remote_get( $asana_url );
 
-	//call API
-	$results = wp_remote_get( $asana_url, $args );
+// echo '<h2>RSH DUMP</h2><pre>'; var_dump( $asana_url ); var_dump( $results ); echo '</pre>';
+
 	if ( !is_wp_error( $results ) ) {
 		//get results
 		$resultsJson = json_decode( $results['body'] );
@@ -399,6 +391,8 @@ function get_asana_info($url_ending, $api_key){
 
 function put_asana_info($url_ending, $method, $data, $api_key){
 
+	$get_param = strpos( '?', $url_ending ) ? '&' : '?';
+	$url = "https://app.asana.com/api/1.0/" . $url_ending . $get_param . 'access_token=' . $api_key;
 	$url = "https://app.asana.com/api/1.0/" . $url_ending;
 	$body = json_encode($data);
 
