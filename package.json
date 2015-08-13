@@ -1,0 +1,13 @@
+{
+  "name": "wp-asana",
+  "version": "1.0.0",
+  "description": "WP Asana",
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-phpcbf": "^0.1.0",
+    "grunt-phpcs": "^0.4.0",
+    "grunt-sass": "^1.0.0",
+    "load-grunt-tasks": "^3.2.0"
+  }
+}

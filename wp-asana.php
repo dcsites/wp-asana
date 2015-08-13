@@ -9,21 +9,24 @@
  * Text Domain: wp-asana
  */
 
-
 // Maybe add an option for tracking the upgrade notice
 add_option( 'asana_show_upgrade_notice', '' );
 
-//Add extra fields to user profile and update db when profile options are saved
-if ( is_admin() ){ // admin actions
+add_action( 'wp_enqueue_scripts', 'asana_scripts' );
+if ( is_admin() ) { // admin actions
 	add_action( 'admin_menu', 'create_asana_options_page' );
 	add_action( 'admin_init', 'register_asana_settings' );
 	add_action( 'admin_init', 'ignore_asana_settings_notice' );
 	add_action( 'admin_notices', 'asana_settings_notice' );
 }
-// add_action( 'wp_enqueue_scripts', 'load_jquery_ui' );
 
 add_shortcode( 'asana-tasks', 'asana_show_tasks' );
 add_shortcode( 'asana-form', 'asana_show_task_form' );
+
+function asana_scripts() {
+	wp_enqueue_style( 'font-awesome', 'https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css' );
+	wp_enqueue_style( 'wp-asana-css', plugin_dir_url( __FILE__ ) . '/css/style.css' );
+}
 
 function create_asana_options_page() {
 	$asana_page_title = __( 'User Asana Settings', 'wp-asana' );
@@ -34,17 +37,6 @@ function create_asana_options_page() {
 function register_asana_settings() {
 	register_setting( 'wp-asana-options', 'asana_api_key' );
 	register_setting( 'wp-asana-options', 'asana_user_workspaces' );
-}
-
-function load_jquery_ui() {
-    global $wp_scripts;
-
-    // get registered script object for jquery-ui
-    $ui = $wp_scripts->query('jquery-ui-core');
-
-    // tell WordPress to load the Smoothness theme from Google CDN
-    $url = "https://ajax.googleapis.com/ajax/libs/jqueryui/{$ui->ver}/themes/smoothness/jquery.ui.all.css";
-    wp_enqueue_style('jquery-ui-smoothness', $url, false, $ui->ver);
 }
 
 function asana_options_page() {
@@ -76,14 +68,14 @@ TABLE;
 
 	printf( $table_open, __( 'Asana API key', 'wp-asana' ), __( 'Your personal API key', 'wp-asana' ) );
 
-	if ( !empty( $api_key ) ) {
-		$workspace_url = "workspaces";
+	if ( ! empty( $api_key ) ) {
+		$workspace_url = 'workspaces';
 		$workspaces = get_asana_info( $workspace_url, $api_key ); //note API key must have colon added to it for basic auth to work
 
 		$users = get_users();
 		$user_workspaces = get_option( 'asana_user_workspaces', false );
 
-		foreach( $users as $user ) {
+		foreach ( $users as $user ) {
 
 			echo '<tr valign="top">';
 
@@ -93,7 +85,7 @@ TABLE;
 
 			echo "<td><select name='asana_user_workspaces[$user->ID]' id='asana_user_workspaces'>";
 
-			if( empty( $ws_user ) ) {
+			if ( empty( $ws_user ) ) {
 				echo "<option value=''>Choose a workspace</option>";
 			}
 
@@ -109,7 +101,7 @@ TABLE;
 		}
 	}
 	else {
-		echo "Please enter an API key and save your options, then come back to select a workspace";
+		echo 'Please enter an API key and save your options, then come back to select a workspace';
 	}
 
 	echo '</table>';
@@ -122,7 +114,9 @@ TABLE;
 
 function asana_show_tasks(){
 
-	if( ! is_user_logged_in() ) {
+	if ( ! is_user_logged_in() ) {
+		echo '<p>' . __( 'Please log in to see your tasks', 'wp-asana' ) . '</p>';
+		wp_login_form();
 		return false;
 	}
 
@@ -135,7 +129,7 @@ function asana_show_tasks(){
 	$ws_value = $ws_values[0];
 
 	//can't create projects until the plugin has been configured and the user has an Asana project
-	if( empty( $api_key ) || empty( $ws_value ) ){
+	if ( empty( $api_key ) || empty( $ws_value ) ){
 		return false;
 	}
 
@@ -146,10 +140,10 @@ function asana_show_tasks(){
 		$tasks_to_update = $_POST['asanatask'];
 
 		//for each task
-		foreach($tasks_to_update as $task){
+		foreach ( $tasks_to_update as $task ){
 
 			$completed = array( 'completed' => true );
-			$body = array( 'data' => $completed);
+			$body = array( 'data' => $completed );
 			$url = 'tasks/' . $task;
 
 			//call the API
@@ -157,8 +151,8 @@ function asana_show_tasks(){
 			$response_r = $response['response'];
 			$code = $response_r['code'];
 
-			if($code == 200){
-				$return .= "Task successfully updated.";
+			if ( $code == 200 ){
+				$return .= 'Task successfully updated.';
 			} else {
 				$return .= 'There was a problem communicating with Asana.  The error returned was ' . $response_r['message'];
 			}
@@ -166,8 +160,8 @@ function asana_show_tasks(){
 	}
 
 	//set correct timezone so that we get the right date for tasks
-	$timezone = get_option('timezone_string', 'UTC+0');
-	date_default_timezone_set($timezone);
+	$timezone = get_option( 'timezone_string', 'UTC+0' );
+	date_default_timezone_set( $timezone );
 
 	//get the names of the projects
 	$projects_url = "workspaces/$ws_value/projects";
@@ -175,13 +169,13 @@ function asana_show_tasks(){
 
 	$total_tasks = 0;
 
-	if( empty( $projects ) ) {
+	if ( empty( $projects ) ) {
 		return '<p>' . __( 'There are no tasks in this workspace', 'wp-asana' ) . '</p>';
 	}
 
-	foreach( $projects as $p ){
+	foreach ( $projects as $p ){
 
-		if( ! $p->id ) {
+		if ( ! $p->id ) {
 			continue;
 		}
 
@@ -191,13 +185,13 @@ function asana_show_tasks(){
 		$return .= '<h3>' . $p->name . '</h3>';
 
 		//if there are no tasks in the category, say so
-		if( ! empty( $tasks ) ) {
+		if ( ! empty( $tasks ) ) {
 			$return .= '<ul class="tasks">';
 
 			$in_subproject = 0;
 			$subproject_tasks = 0;
 
-			foreach( $tasks as $t ) {
+			foreach ( $tasks as $t ) {
 
 				if ( 1 == $t->completed || empty( $t->name ) ) {
 					continue;
@@ -205,37 +199,47 @@ function asana_show_tasks(){
 
 				$is_subproject = ':' == substr( $t->name, -1 ) ? true : false;
 
-				if( $is_subproject && $in_subproject && ! $subproject_tasks ) {
+				if ( $is_subproject && $in_subproject && ! $subproject_tasks ) {
 					$return .= '</ul>';
 				}
 
-				if( $total_tasks ) {
+				if ( $total_tasks ) {
 					$return .= '</li>';
 				}
 
-				if( $is_subproject && $in_subproject && $subproject_tasks ) {
+				if ( $is_subproject && $in_subproject && $subproject_tasks ) {
 					$return .= '</ul>';
 				}
 
 				$total_tasks++;
 				$subproject_tasks++;
 
-				$return .= '<li>' . $t->name;
+				$return .= '<li>';
+
+				if ( $is_subproject ) {
+					$return .= '<strong>';
+				}
+
+				$return .= $t->name;
 
 				$color = strtotime( $t->due_on ) < time() ? 'red' : 'grey';
 
-				if( !empty( $t->due_on ) ) {
+				if ( ! empty( $t->due_on ) ) {
 					$return .= " - <span class='$color'>$t->due_on</span>";
 				}
 
-				if( $is_subproject ) {
+				if ( $is_subproject ) {
+					$return .= '</strong>';
+				}
+
+				if ( $is_subproject ) {
 					$return .= '<ul>';
 					$in_subproject++;
 					$subproject_tasks = 0;
 				}
 			}
 
-			if( $is_subproject ) {
+			if ( $is_subproject || $subproject_tasks ) {
 				$return .= '</ul>';
 			}
 
@@ -243,19 +247,18 @@ function asana_show_tasks(){
 		} else {
 			$return .= '<p>' . __( 'There are no tasks in this project', 'wp-asana' ) . '</p>';
 		}
-
 	}
 
-	if( ! $total_tasks ) {
+	if ( ! $total_tasks ) {
 		$return .= '<p>' . __( 'There are no tasks in this workspace', 'wp-asana' ) . '</p>';
 	}
-echo '<h2>RSH DUMP</h2><pre>'; var_dump( $return ); echo '</pre>';
+
 	return $return;
 }
 
 function asana_show_task_form(){
 
-	if( ! is_user_logged_in() ) {
+	if ( ! is_user_logged_in() ) {
 		return false;
 	}
 
@@ -268,7 +271,7 @@ function asana_show_task_form(){
 	$ws_value = $ws_values[0];
 
 	//can't create projects until the plugin has been configured and the user has an Asana project
-	if( empty( $api_key ) || empty( $ws_value ) ){
+	if ( empty( $api_key ) || empty( $ws_value ) ){
 		return false;
 	}
 
@@ -281,20 +284,20 @@ function asana_show_task_form(){
 		$notes = $_POST['asana_new_task_notes'];
 		$project = $_POST['asana_project'];
 		$due_date = $_POST['asana_due_date'];
-		$url = "tasks";
-		$method = "POST";
+		$url = 'tasks';
+		$method = 'POST';
 
 		$bodydata = array(
 			'name' => $name,
 			'workspace' => $ws_value,
-			'assignee' => 'me'
+			'assignee' => 'me',
 			);
 
-		if ( !empty( $notes ) ){
-			$bodydata["notes"] = $notes;
+		if ( ! empty( $notes ) ){
+			$bodydata['notes'] = $notes;
 		}
-		if ( !empty( $due_date ) ){
-			$bodydata["due_on"] = $due_date;
+		if ( ! empty( $due_date ) ){
+			$bodydata['due_on'] = $due_date;
 		}
 
 		$body = array( 'data' => $bodydata );
@@ -302,38 +305,33 @@ function asana_show_task_form(){
 		//call task creation
 		$response = put_asana_info( $url, $method, $body, $api_key );
 
-		if ( is_wp_error($response) ) {
-			$return .= 'Error communicating with Asana: ' . $response->get_error_message();
-		} else {
-			$response_r = $response["response"];
-			$code = $response_r["code"];
 
-			if( 201 == $code ){
+		if ( is_wp_error( $response ) ) {
+			return 'Error communicating with Asana: ' . $response->get_error_message();
+		} else {
+			$response_r = $response['response'];
+			$code = $response_r['code'];
+
+			if ( 201 == $code ){
 				$return .= 'Task successfully created.';
 			} else {
-				$return .= 'There was a problem communicating with Asana.  The error returned was ' . $response_r['message'];
+				return 'There was a problem communicating with Asana.  The error returned was ' . $response_r['message'];
 			}
-
 
 			//call the api again to associate it with the project
-			$response_body = json_decode($response['body']);
+			$response_body = json_decode( $response['body'] );
 			$data = $response_body->data;
 			$id = $data->id;
-			$url = "tasks/".$id."/addProject";
-			$bodydata = array("project" => $project);
-			$body = array("data" => $bodydata);
-			$response = put_asana_info($url, "POST", $body, $api_key);
-			if ( is_wp_error($response) ) {
-				$return .= "Error communicating with Asana: ".$response->get_error_message();
-			}
-			else {
-				$response_r = $response["response"];
-				$code = $response_r["code"];
-				if($code == 200){
-					$return .= "  Task added to project.";
-				} else {
-					$return .= "  There was a problem adding the task to the project.  The error returned was ".$response_r["message"];
-				}
+			$url = 'tasks/'.$id.'/addProject';
+			$bodydata = array( 'project' => $project );
+			$body = array( 'data' => $bodydata );
+			$response = put_asana_info( $url, 'POST', $body, $api_key );
+			$response_r = $response['response'];
+			$code = $response_r['code'];
+			if ( $code == 200 ){
+				$return .= '  Task added to project.';
+			} else {
+				$return .= '  There was a problem adding the task to the project.  The error returned was '.$response_r['message'];
 			}
 		}
 	}
@@ -342,8 +340,10 @@ function asana_show_task_form(){
 	$projects_url = "workspaces/$ws_value/projects";
 	$projects = get_asana_info( $projects_url, $api_key );
 
+	$url = get_permalink();
+
 	$form = <<<FORM
-	<form action='{$_SERVER['PHP_SELF']}' method='post' enctype='multipart/form-data'>
+	<form action='{$url}' method='post' enctype='multipart/form-data'>
 		<table>
 			<tr>
 				<td>%s</td>
@@ -374,8 +374,8 @@ function asana_show_task_form(){
 FORM;
 
 	$options = '';
-	if( is_array( $projects ) ) {
-		foreach ($projects as $p) {
+	if ( is_array( $projects ) ) {
+		foreach ( $projects as $p ) {
 			$options .= "<option value='$p->id'>$p->name</option>";
 		}
 	}
@@ -393,25 +393,23 @@ FORM;
 		$date_max,
 		$date_min,
 		__( 'Create Task', 'wp-asana' )
-		);
+	);
 
 	return $return;
 }
 
 function get_asana_info($url_ending, $api_key){
 	$get_param = strpos( $url_ending, '?' ) ? '&' : '?';
-	$asana_url = "https://app.asana.com/api/1.0/" . $url_ending . $get_param . 'access_token=' . $api_key;
+	$asana_url = 'https://app.asana.com/api/1.0/' . $url_ending . $get_param . 'access_token=' . $api_key;
 	$data = false;
 
 	$results = wp_remote_get( $asana_url );
 
-// echo '<h2>RSH DUMP</h2><pre>'; var_dump( $asana_url ); var_dump( $results ); echo '</pre>';
-
-	if ( !is_wp_error( $results ) ) {
+	if ( ! is_wp_error( $results ) ) {
 		//get results
 		$resultsJson = json_decode( $results['body'] );
 
-		if( isset( $resultsJson->data ) ) {
+		if ( isset( $resultsJson->data ) ) {
 			$data = $resultsJson->data;
 		}
 	}
@@ -419,44 +417,38 @@ function get_asana_info($url_ending, $api_key){
 }
 
 
-function put_asana_info($url_ending, $method, $data, $api_key){
+function put_asana_info( $url_ending, $method, $data, $api_key ){
 
-	$get_param = strpos( '?', $url_ending ) ? '&' : '?';
-	$url = "https://app.asana.com/api/1.0/" . $url_ending . $get_param . 'access_token=' . $api_key;
-	$url = "https://app.asana.com/api/1.0/" . $url_ending;
-	$body = json_encode($data);
+	$url = 'https://app.asana.com/api/1.0/' . $url_ending;
+	$body = json_encode( $data );
 
 	//method is POST for new tasks/projects, PUT for updating existing stuff
 	//note that content type has been set to application/json.  That's the only way to get data out of this sucker
 	$args = array(
-		'method' =>  $method,
+		'access_token'	=> $api_key,
+		'method' => $method,
 		'body' => $body,
-		'headers' => array(
-			'Content-Type'=> 'application/json',
-			'Authorization' => 'Basic ' .base64_encode( $api_key ),
-			),
-		'sslverify' => false,
 		);
 
 	//call it
-	$response = wp_remote_request( $url, $args);
+	$response = wp_remote_request( $url, $args );
 	return $response;
 }
 
 // display notice about change to plugin
 function asana_settings_notice() {
-	if (current_user_can('manage_options')) {
-		if (get_option('show_asana_upgrade_notice') != 'Version 1.0' ) {
+	if ( current_user_can( 'manage_options' ) ) {
+		if ( 'Version 1.0' != get_option( 'show_asana_upgrade_notice' ) ) {
 			echo '<div class="updated"><p>';
-			printf(__('The Asana Task Widget plugin now stores its information in usermeta.  Please go to your profile page to set it up. | <a href="%1$s">Hide Notice</a>'), '?ignore_asana_settings_notice=0');
-			echo "</p></div>";
+			printf( __( 'The Asana Task Widget plugin now stores its information in usermeta.  Please go to your profile page to set it up. | <a href="%1$s">Hide Notice</a>' ), '?ignore_asana_settings_notice=0' );
+			echo '</p></div>';
 		}
-    }
+	}
 }
 
 function ignore_asana_settings_notice() {
-    // If user clicks to ignore the notice, update the option
-    if ( isset($_GET['ignore_asana_settings_notice']) && '0' == $_GET['ignore_asana_settings_notice'] ) {
-		update_option('show_asana_upgrade_notice', 'Version 1.0');
+	// If user clicks to ignore the notice, update the option
+	if ( isset($_GET['ignore_asana_settings_notice']) && '0' == $_GET['ignore_asana_settings_notice'] ) {
+		update_option( 'show_asana_upgrade_notice', 'Version 1.0' );
 	}
 }

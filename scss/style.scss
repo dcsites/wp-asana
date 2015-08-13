@@ -1,0 +1,32 @@
+/**
+ * SASS file for WP-Asana Plugin
+ *
+ */
+
+ $red: #E75668;
+ $grey: #999999;
+
+.red {
+	color: $red;
+}
+
+.grey {
+	color: $grey;
+}
+
+.tasks {
+	li {
+		list-style: none;
+
+		&:before {
+			content: "\f096";
+		    font-family: FontAwesome;
+		    font-style: normal;
+		    font-weight: normal;
+		    text-decoration: inherit;
+		    color: $grey;
+		    font-size: 18px;
+		    padding-right: 0.5em;
+		}
+	}
+}
