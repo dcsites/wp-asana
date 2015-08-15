@@ -331,7 +331,7 @@ function asana_show_task_form(){
 	}
 
 	//create form
-	$projects_url = "workspaces/$ws_value/projects";
+	$projects_url = "workspaces/$ws_value/projects?archived=false";
 	$projects = get_asana_info( $projects_url );
 
 	$url = get_permalink();
@@ -345,7 +345,7 @@ function asana_show_task_form(){
 			</tr>
 			<tr>
 				<td>%s</td>
-				<td><textarea name='asana_new_task_notes' id='asana_new_task_notes' ></textarea></td>
+				<td><textarea name='asana_new_task_notes' id='asana_new_task_notes' cols="50" rows="3" ></textarea></td>
 			</tr>
 			<tr>
 				<td>%s</td>
