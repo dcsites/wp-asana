@@ -1,3 +1,3 @@
-.red{color:#E75668}.grey{color:#999}.tasks li{list-style:none}.tasks li:before{content:"\f096";font-family:FontAwesome;font-style:normal;font-weight:normal;text-decoration:inherit;color:#999;font-size:18px;padding-right:0.5em}
+.red{color:#E75668}.grey{color:#999}.tasks{margin-left:1.5em}.tasks li{list-style:none}.tasks li:before{content:"\f096";font-family:FontAwesome;font-style:normal;font-weight:normal;text-decoration:inherit;color:#999;font-size:18px;padding-right:0.5em;margin-left:-1.3em}
 
 /*# sourceMappingURL=style.css.map */

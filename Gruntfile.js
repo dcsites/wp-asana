@@ -18,9 +18,11 @@ module.exports = function(grunt) {
       phpcs: {
         options: {
             standard: 'WordPress-Core',
+            ignore: 'node_modules',
+            extensions: 'php'
         },
-        theme: {
-            src: ['./**/*.php']
+        plugin: {
+            src: ['./*.php']
         },
       },
 
